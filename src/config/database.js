@@ -1,21 +1,28 @@
-const mysql = require('mysql2/promise');
+const { Pool } = require('pg');
+require('dotenv').config();
 
-const createConnection = async () => {
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { 
+    rejectUnauthorized: false 
+  } : false,
+});
+
+// Verificar conexión al inicio
+const testConnection = async () => {
   try {
-    // Para Render PostgreSQL o MySQL externo
-    const connection = await mysql.createConnection({
-      host: process.env.MYSQL_HOST || process.env.DB_HOST,
-      user: process.env.MYSQL_USER || process.env.DB_USER,
-      password: process.env.MYSQL_PASSWORD || process.env.DB_PASSWORD,
-      database: process.env.MYSQL_DATABASE || process.env.DB_NAME,
-      port: process.env.MYSQL_PORT || process.env.DB_PORT || 3306,
-      charset: 'utf8mb4'
-    });
-
-    console.log('✅ Connected to database successfully');
-    return connection;
+    const client = await pool.connect();
+    console.log('✅ PostgreSQL Connected successfully to Render');
+    client.release();
   } catch (error) {
-    console.error('❌ Database connection failed:', error.message);
+    console.error('❌ PostgreSQL Connection failed:', error.message);
     process.exit(1);
   }
+};
+
+testConnection();
+
+module.exports = {
+  query: (text, params) => pool.query(text, params),
+  pool,
 };
