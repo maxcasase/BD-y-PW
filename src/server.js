@@ -18,7 +18,6 @@ const auth = require('./routes/auth');
 const users = require('./routes/users');
 const albums = require('./routes/albums');
 const reviews = require('./routes/reviews');
-const playlists = require('./routes/playlists');
 
 const app = express();
 
