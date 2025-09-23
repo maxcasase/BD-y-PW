@@ -20,63 +20,63 @@ async function setupDatabase() {
 
     // LUEGO crear tablas nuevas
     const setupSQL = `
-      CREATE TABLE genres (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(100) NOT NULL UNIQUE,
-        description TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
+     CREATE TABLE generos (
+    id SERIAL PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL UNIQUE,
+    descripcion TEXT,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
 
-      CREATE TABLE artists (
+    CREATE TABLE artistas (
         id SERIAL PRIMARY KEY,
-        name VARCHAR(200) NOT NULL UNIQUE,
-        bio TEXT,
-        image_url VARCHAR(500),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
+        nombre VARCHAR(200) NOT NULL UNIQUE,
+        biografia TEXT,
+        url_imagen VARCHAR(500),
+        fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
 
-      CREATE TABLE albums (
+    CREATE TABLE albumes (
         id SERIAL PRIMARY KEY,
-        title VARCHAR(300) NOT NULL,
-        artist_id INTEGER REFERENCES artists(id) ON DELETE CASCADE,
-        release_year INTEGER NOT NULL,
-        genre_id INTEGER REFERENCES genres(id) ON DELETE CASCADE,
-        cover_image VARCHAR(500),
-        total_tracks INTEGER DEFAULT 0,
-        duration INTEGER DEFAULT 0,
-        average_rating DECIMAL(3,2) DEFAULT 0.00,
-        total_ratings INTEGER DEFAULT 0,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
+        titulo VARCHAR(300) NOT NULL,
+        artista_id INTEGER REFERENCES artistas(id) ON DELETE CASCADE,
+        año_lanzamiento INTEGER NOT NULL,
+        genero_id INTEGER REFERENCES generos(id) ON DELETE CASCADE,
+        url_portada VARCHAR(500),
+        total_canciones INTEGER DEFAULT 0,
+        duracion_total INTEGER DEFAULT 0,
+        calificacion_promedio DECIMAL(3,2) DEFAULT 0.00,
+        total_calificaciones INTEGER DEFAULT 0,
+        fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
 
-      CREATE TABLE users (
+    CREATE TABLE usuarios (
         id SERIAL PRIMARY KEY,
-        username VARCHAR(50) UNIQUE NOT NULL,
-        email VARCHAR(100) UNIQUE NOT NULL,
-        password_hash VARCHAR(255) NOT NULL,
-        profile_name VARCHAR(100),
-        bio TEXT,
-        avatar_url VARCHAR(500),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
+        nombre_usuario VARCHAR(50) UNIQUE NOT NULL,
+        correo_electronico VARCHAR(100) UNIQUE NOT NULL,
+        hash_contrasena VARCHAR(255) NOT NULL,
+        nombre_perfil VARCHAR(100),
+        biografia TEXT,
+        url_avatar VARCHAR(500),
+        fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
 
-      CREATE TABLE reviews (
+    CREATE TABLE reseñas (
         id SERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-        album_id INTEGER REFERENCES albums(id) ON DELETE CASCADE,
-        rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 10),
-        title VARCHAR(200) NOT NULL,
-        content TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE (user_id, album_id)
-      );
+        usuario_id INTEGER REFERENCES usuarios(id) ON DELETE CASCADE,
+        album_id INTEGER REFERENCES albumes(id) ON DELETE CASCADE,
+        calificacion INTEGER NOT NULL CHECK (calificacion BETWEEN 1 AND 10),
+        titulo VARCHAR(200) NOT NULL,
+        contenido TEXT NOT NULL,
+        fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE (usuario_id, album_id)
+    );
 
-      CREATE INDEX idx_albums_artist ON albums(artist_id);
-      CREATE INDEX idx_albums_genre ON albums(genre_id);
-      CREATE INDEX idx_reviews_album ON reviews(album_id);
-      CREATE INDEX idx_reviews_user ON reviews(user_id);
-    `;
+    -- Índices para mejorar el rendimiento
+    CREATE INDEX idx_albumes_artista ON albumes(artista_id);
+    CREATE INDEX idx_albumes_genero ON albumes(genero_id);
+    CREATE INDEX idx_reseñas_album ON reseñas(album_id);
+    CREATE INDEX idx_reseñas_usuario ON reseñas(usuario_id);
 
     await client.query(setupSQL);
     console.log('✅ Database tables created successfully');
