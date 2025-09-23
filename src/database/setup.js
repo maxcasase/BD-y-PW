@@ -8,11 +8,11 @@ async function setupDatabase() {
 
     // PRIMERO eliminar tablas existentes (en orden inverso por dependencias)
     const dropTablesSQL = `
-      DROP TABLE IF EXISTS reseñas CASCADE;
+      DROP TABLE IF EXISTS reviews CASCADE;
       DROP TABLE IF EXISTS albums CASCADE;
-      DROP TABLE IF EXISTS usuarios CASCADE;
-      DROP TABLE IF EXISTS artistas CASCADE;
-      DROP TABLE IF EXISTS generos CASCADE;
+      DROP TABLE IF EXISTS users CASCADE;
+      DROP TABLE IF EXISTS artists CASCADE;
+      DROP TABLE IF EXISTS genres CASCADE;
     `;
 
     await client.query(dropTablesSQL);
@@ -20,70 +20,70 @@ async function setupDatabase() {
 
     // LUEGO crear tablas nuevas
     const setupSQL = `
-     CREATE TABLE generos (
-    id SERIAL PRIMARY KEY,
-    nombre VARCHAR(100) NOT NULL UNIQUE,
-    descripcion TEXT,
-    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE artistas (
+      CREATE TABLE genres (
         id SERIAL PRIMARY KEY,
-        nombre VARCHAR(200) NOT NULL UNIQUE,
-        biografia TEXT,
-        url_imagen VARCHAR(500),
-        fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
+        name VARCHAR(100) NOT NULL UNIQUE,
+        description TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
 
-    CREATE TABLE albumes (
+      CREATE TABLE artists (
         id SERIAL PRIMARY KEY,
-        titulo VARCHAR(300) NOT NULL,
-        artista_id INTEGER REFERENCES artistas(id) ON DELETE CASCADE,
-        año_lanzamiento INTEGER NOT NULL,
-        genero_id INTEGER REFERENCES generos(id) ON DELETE CASCADE,
-        url_portada VARCHAR(500),
-        total_canciones INTEGER DEFAULT 0,
-        duracion_total INTEGER DEFAULT 0,
-        calificacion_promedio DECIMAL(3,2) DEFAULT 0.00,
-        total_calificaciones INTEGER DEFAULT 0,
-        fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
+        name VARCHAR(200) NOT NULL UNIQUE,
+        bio TEXT,
+        image_url VARCHAR(500),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
 
-    CREATE TABLE usuarios (
+      CREATE TABLE albums (
         id SERIAL PRIMARY KEY,
-        nombre_usuario VARCHAR(50) UNIQUE NOT NULL,
-        correo_electronico VARCHAR(100) UNIQUE NOT NULL,
-        hash_contrasena VARCHAR(255) NOT NULL,
-        nombre_perfil VARCHAR(100),
-        biografia TEXT,
-        url_avatar VARCHAR(500),
-        fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
+        title VARCHAR(300) NOT NULL,
+        artist_id INTEGER REFERENCES artists(id) ON DELETE CASCADE,
+        release_year INTEGER NOT NULL,
+        genre_id INTEGER REFERENCES genres(id) ON DELETE CASCADE,
+        cover_image VARCHAR(500),
+        total_tracks INTEGER DEFAULT 0,
+        duration INTEGER DEFAULT 0,
+        average_rating DECIMAL(3,2) DEFAULT 0.00,
+        total_ratings INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
 
-    CREATE TABLE reseñas (
+      CREATE TABLE users (
         id SERIAL PRIMARY KEY,
-        usuario_id INTEGER REFERENCES usuarios(id) ON DELETE CASCADE,
-        album_id INTEGER REFERENCES albumes(id) ON DELETE CASCADE,
-        calificacion INTEGER NOT NULL CHECK (calificacion BETWEEN 1 AND 10),
-        titulo VARCHAR(200) NOT NULL,
-        contenido TEXT NOT NULL,
-        fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE (usuario_id, album_id)
-    );
+        username VARCHAR(50) UNIQUE NOT NULL,
+        email VARCHAR(100) UNIQUE NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        profile_name VARCHAR(100),
+        bio TEXT,
+        avatar_url VARCHAR(500),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
 
-    -- Índices para mejorar el rendimiento
-    CREATE INDEX idx_albumes_artista ON albumes(artista_id);
-    CREATE INDEX idx_albumes_genero ON albumes(genero_id);
-    CREATE INDEX idx_reseñas_album ON reseñas(album_id);
-    CREATE INDEX idx_reseñas_usuario ON reseñas(usuario_id);
+      CREATE TABLE reviews (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        album_id INTEGER REFERENCES albums(id) ON DELETE CASCADE,
+        rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 10),
+        title VARCHAR(200) NOT NULL,
+        content TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE (user_id, album_id)
+      );
+
+      CREATE INDEX idx_albums_artist ON albums(artist_id);
+      CREATE INDEX idx_albums_genre ON albums(genre_id);
+      CREATE INDEX idx_reviews_album ON reviews(album_id);
+      CREATE INDEX idx_reviews_user ON reviews(user_id);
+    `;
 
     await client.query(setupSQL);
     console.log('✅ Database tables created successfully');
 
     // Insertar datos básicos
     await client.query(`
-      INSERT INTO generos (name, description) VALUES 
+      INSERT INTO genres (name, description) VALUES 
       ('Rock', 'Música rock'),
       ('Pop', 'Música pop'),
       ('Jazz', 'Música jazz'),
@@ -91,7 +91,7 @@ async function setupDatabase() {
       ('Electrónica', 'Música electrónica')
       ON CONFLICT (name) DO NOTHING;
 
-      INSERT INTO artistas (name, bio) VALUES 
+      INSERT INTO artists (name, bio) VALUES 
       ('Pink Floyd', 'Banda británica de rock progresivo'),
       ('The Beatles', 'Banda de rock inglesa'),
       ('Michael Jackson', 'El rey del pop')
