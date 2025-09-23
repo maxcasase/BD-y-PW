@@ -39,7 +39,6 @@ app.use('/api/v1/auth', auth);
 app.use('/api/v1/users', users);
 app.use('/api/v1/albums', albums);
 app.use('/api/v1/reviews', reviews);
-app.use('/api/v1/playlists', playlists);
 
 // Health check endpoint
 app.get('/api/v1/health', async (req, res) => {
