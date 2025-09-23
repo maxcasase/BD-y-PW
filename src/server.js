@@ -6,6 +6,9 @@ const dotenv = require('dotenv');
 
 dotenv.config();
 
+// Importar configuración de DB (PostgreSQL)
+require('./config/database');
+
 // Importar rutas
 const auth = require('./routes/auth');
 const users = require('./routes/users');
@@ -18,7 +21,7 @@ const app = express();
 // Middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.FRONTEND_URL || "http://localhost:3000",
+  origin: process.env.FRONTEND_URL || "https://tu-frontend.onrender.com",
   credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));
@@ -35,14 +38,14 @@ app.use('/api/v1/albums', albums);
 app.use('/api/v1/reviews', reviews);
 app.use('/api/v1/playlists', playlists);
 
-// Health check
+// Health check endpoint
 app.get('/api/v1/health', (req, res) => {
   res.status(200).json({
     success: true,
-    message: 'Server is running',
+    message: 'Server is running on Render',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV,
-    database: 'MySQL'
+    database: 'PostgreSQL'
   });
 });
 
@@ -58,10 +61,10 @@ app.all('*', (req, res) => {
 const errorHandler = require('./middleware/errorHandler');
 app.use(errorHandler);
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 10000; // Render usa puerto dinámico
 
 app.listen(PORT, () => {
-  console.log(`🚀 Servidor corriendo en modo ${process.env.NODE_ENV} en puerto ${PORT}`);
-  console.log(`📊 Base de datos: MySQL`);
-  console.log(`🌐 Health check: http://localhost:${PORT}/api/v1/health`);
+  console.log(`🚀 Servidor corriendo en Render - Puerto: ${PORT}`);
+  console.log(`📊 Base de datos: PostgreSQL`);
+  console.log(`🌐 Health check: /api/v1/health`);
 });
