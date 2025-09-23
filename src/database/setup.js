@@ -8,7 +8,7 @@ async function setupDatabase() {
   try {
     console.log('🚀 Starting database setup for Render PostgreSQL...');
 
-    // Crear tablas
+    // Crear tablas SIN comentarios en el SQL
     const setupSQL = `
       CREATE TABLE IF NOT EXISTS genres (
         id SERIAL PRIMARY KEY,
@@ -19,11 +19,12 @@ async function setupDatabase() {
 
       CREATE TABLE IF NOT EXISTS artists (
         id SERIAL PRIMARY KEY,
-        name VARCHAR(200) NOT NULL UNIQUE,  // ← AÑADE UNIQUE AQUÍ
+        name VARCHAR(200) NOT NULL UNIQUE,
         bio TEXT,
         image_url VARCHAR(500),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+
       CREATE TABLE IF NOT EXISTS albums (
         id SERIAL PRIMARY KEY,
         title VARCHAR(300) NOT NULL,
