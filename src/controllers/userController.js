@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const { query } = require('../config/database');
 
 exports.getUserProfile = async (req, res) => {
   try {
@@ -10,43 +11,6 @@ exports.getUserProfile = async (req, res) => {
         message: 'Usuario no encontrado'
       });
     }
-
-    // Obtener estadísticas del usuario
-    const stats = await User.getUserStats(req.params.id);
-
-    res.status(200).json({
-      success: true,
-      user: {
-        ...user,
-        stats
-      }
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-};
-
-exports.updateUserProfile = async (req, res) => {
-  try {
-    const { profile_name, bio, avatar_url } = req.body;
-    
-    const updated = await User.updateProfile(req.user.id, {
-      profile_name,
-      bio,
-      avatar_url
-    });
-
-    if (!updated) {
-      return res.status(404).json({
-        success: false,
-        message: 'Usuario no encontrado'
-      });
-    }
-
-    const user = await User.findById(req.user.id);
 
     res.status(200).json({
       success: true,
@@ -60,27 +24,66 @@ exports.updateUserProfile = async (req, res) => {
   }
 };
 
-exports.followUser = async (req, res) => {
+exports.updateUserProfile = async (req, res) => {
   try {
-    const result = await User.followUser(req.user.id, req.params.id);
+    const { profile_name, bio, avatar_url } = req.body;
+    
+    const updatedUser = await User.updateProfile(req.user.id, {
+      profile_name,
+      bio,
+      avatar_url
+    });
 
-    if (result === 'ALREADY_FOLLOWING') {
-      return res.status(400).json({
+    if (!updatedUser) {
+      return res.status(404).json({
         success: false,
-        message: 'Ya sigues a este usuario'
-      });
-    }
-
-    if (result === 'SELF_FOLLOW') {
-      return res.status(400).json({
-        success: false,
-        message: 'No puedes seguirte a ti mismo'
+        message: 'Usuario no encontrado'
       });
     }
 
     res.status(200).json({
       success: true,
+      user: updatedUser
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+exports.followUser = async (req, res) => {
+  try {
+    // Implementación básica - puedes mejorarla después
+    const result = await query(
+      'INSERT INTO user_followers (follower_id, following_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+      [req.user.id, req.params.id]
+    );
+
+    res.status(200).json({
+      success: true,
       message: 'Usuario seguido correctamente'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// Si necesitas unfollow, agrega esta función:
+exports.unfollowUser = async (req, res) => {
+  try {
+    await query(
+      'DELETE FROM user_followers WHERE follower_id = $1 AND following_id = $2',
+      [req.user.id, req.params.id]
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Dejaste de seguir al usuario'
     });
   } catch (error) {
     res.status(500).json({
