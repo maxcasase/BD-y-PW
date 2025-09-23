@@ -19,12 +19,11 @@ async function setupDatabase() {
 
       CREATE TABLE IF NOT EXISTS artists (
         id SERIAL PRIMARY KEY,
-        name VARCHAR(200) NOT NULL,
+        name VARCHAR(200) NOT NULL UNIQUE,  // ← AÑADE UNIQUE AQUÍ
         bio TEXT,
         image_url VARCHAR(500),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-
       CREATE TABLE IF NOT EXISTS albums (
         id SERIAL PRIMARY KEY,
         title VARCHAR(300) NOT NULL,
