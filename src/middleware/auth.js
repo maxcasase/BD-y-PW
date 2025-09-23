@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const { query } = require('../config/database');
 
 const protect = async (req, res, next) => {
   try {
@@ -18,16 +18,20 @@ const protect = async (req, res, next) => {
 
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const user = await User.findById(decoded.id);
       
-      if (!user) {
+      const result = await query(
+        'SELECT id, username, email FROM users WHERE id = $1',
+        [decoded.id]
+      );
+
+      if (result.rows.length === 0) {
         return res.status(401).json({
           success: false,
           message: 'Usuario no encontrado'
         });
       }
 
-      req.user = user;
+      req.user = result.rows[0];
       next();
     } catch (error) {
       return res.status(401).json({
