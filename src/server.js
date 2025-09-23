@@ -6,10 +6,14 @@ const dotenv = require('dotenv');
 
 dotenv.config();
 
-// Importar configuración de DB (PostgreSQL)
+// Configuración de base de datos (PostgreSQL)
 require('./config/database');
 
-// Importar rutas
+// Importar y ejecutar setup de base de datos
+const setupDatabase = require('./database/setup');
+setupDatabase();
+
+// Route files
 const auth = require('./routes/auth');
 const users = require('./routes/users');
 const albums = require('./routes/albums');
@@ -21,7 +25,7 @@ const app = express();
 // Middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.FRONTEND_URL || "https://tu-frontend.onrender.com",
+  origin: process.env.FRONTEND_URL || "http://localhost:3000",
   credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));
@@ -31,7 +35,7 @@ if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
-// Montar rutas
+// Mount routers
 app.use('/api/v1/auth', auth);
 app.use('/api/v1/users', users);
 app.use('/api/v1/albums', albums);
@@ -39,32 +43,44 @@ app.use('/api/v1/reviews', reviews);
 app.use('/api/v1/playlists', playlists);
 
 // Health check endpoint
-app.get('/api/v1/health', (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: 'Server is running on Render',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV,
-    database: 'PostgreSQL'
-  });
+app.get('/api/v1/health', async (req, res) => {
+  try {
+    const { query } = require('./config/database');
+    await query('SELECT 1');
+    
+    res.status(200).json({
+      success: true,
+      message: 'Server is running on Render',
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV,
+      database: 'PostgreSQL ✅'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Database connection failed',
+      error: error.message
+    });
+  }
 });
 
-// Manejar rutas no encontradas
+// Handle undefined routes
 app.all('*', (req, res) => {
   res.status(404).json({
     success: false,
-    message: `Ruta ${req.originalUrl} no encontrada`
+    message: `Route ${req.originalUrl} not found`
   });
 });
 
-// Manejar errores
+// Error handler
 const errorHandler = require('./middleware/errorHandler');
 app.use(errorHandler);
 
-const PORT = process.env.PORT || 10000; // Render usa puerto dinámico
+const PORT = process.env.PORT || 10000;
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en Render - Puerto: ${PORT}`);
-  console.log(`📊 Base de datos: PostgreSQL`);
-  console.log(`🌐 Health check: /api/v1/health`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
+  console.log(`📊 Database: PostgreSQL`);
+  console.log(`✅ Health check: /api/v1/health`);
 });
