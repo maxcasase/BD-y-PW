@@ -1,6 +1,4 @@
 const { query, getClient } = require('../config/database');
-const fs = require('fs');
-const path = require('path');
 
 async function setupDatabase() {
   const client = await getClient();
@@ -8,16 +6,28 @@ async function setupDatabase() {
   try {
     console.log('🚀 Starting database setup for Render PostgreSQL...');
 
-    // Crear tablas SIN comentarios en el SQL
+    // PRIMERO eliminar tablas existentes (en orden inverso por dependencias)
+    const dropTablesSQL = `
+      DROP TABLE IF EXISTS reviews CASCADE;
+      DROP TABLE IF EXISTS albums CASCADE;
+      DROP TABLE IF EXISTS users CASCADE;
+      DROP TABLE IF EXISTS artists CASCADE;
+      DROP TABLE IF EXISTS genres CASCADE;
+    `;
+
+    await client.query(dropTablesSQL);
+    console.log('✅ Old tables dropped successfully');
+
+    // LUEGO crear tablas nuevas
     const setupSQL = `
-      CREATE TABLE IF NOT EXISTS genres (
+      CREATE TABLE genres (
         id SERIAL PRIMARY KEY,
         name VARCHAR(100) NOT NULL UNIQUE,
         description TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
 
-      CREATE TABLE IF NOT EXISTS artists (
+      CREATE TABLE artists (
         id SERIAL PRIMARY KEY,
         name VARCHAR(200) NOT NULL UNIQUE,
         bio TEXT,
@@ -25,7 +35,7 @@ async function setupDatabase() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
 
-      CREATE TABLE IF NOT EXISTS albums (
+      CREATE TABLE albums (
         id SERIAL PRIMARY KEY,
         title VARCHAR(300) NOT NULL,
         artist_id INTEGER REFERENCES artists(id) ON DELETE CASCADE,
@@ -39,7 +49,7 @@ async function setupDatabase() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
 
-      CREATE TABLE IF NOT EXISTS users (
+      CREATE TABLE users (
         id SERIAL PRIMARY KEY,
         username VARCHAR(50) UNIQUE NOT NULL,
         email VARCHAR(100) UNIQUE NOT NULL,
@@ -50,7 +60,7 @@ async function setupDatabase() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
 
-      CREATE TABLE IF NOT EXISTS reviews (
+      CREATE TABLE reviews (
         id SERIAL PRIMARY KEY,
         user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
         album_id INTEGER REFERENCES albums(id) ON DELETE CASCADE,
@@ -62,10 +72,10 @@ async function setupDatabase() {
         UNIQUE (user_id, album_id)
       );
 
-      CREATE INDEX IF NOT EXISTS idx_albums_artist ON albums(artist_id);
-      CREATE INDEX IF NOT EXISTS idx_albums_genre ON albums(genre_id);
-      CREATE INDEX IF NOT EXISTS idx_reviews_album ON reviews(album_id);
-      CREATE INDEX IF NOT EXISTS idx_reviews_user ON reviews(user_id);
+      CREATE INDEX idx_albums_artist ON albums(artist_id);
+      CREATE INDEX idx_albums_genre ON albums(genre_id);
+      CREATE INDEX idx_reviews_album ON reviews(album_id);
+      CREATE INDEX idx_reviews_user ON reviews(user_id);
     `;
 
     await client.query(setupSQL);
@@ -98,7 +108,6 @@ async function setupDatabase() {
   }
 }
 
-// Solo ejecutar si es el módulo principal
 if (require.main === module) {
   setupDatabase().then(() => process.exit(0));
 }
