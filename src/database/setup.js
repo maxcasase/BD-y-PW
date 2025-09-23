@@ -8,11 +8,11 @@ async function setupDatabase() {
 
     // PRIMERO eliminar tablas existentes (en orden inverso por dependencias)
     const dropTablesSQL = `
-      DROP TABLE IF EXISTS reviews CASCADE;
+      DROP TABLE IF EXISTS reseñas CASCADE;
       DROP TABLE IF EXISTS albums CASCADE;
-      DROP TABLE IF EXISTS users CASCADE;
-      DROP TABLE IF EXISTS artists CASCADE;
-      DROP TABLE IF EXISTS genres CASCADE;
+      DROP TABLE IF EXISTS usuarios CASCADE;
+      DROP TABLE IF EXISTS artistas CASCADE;
+      DROP TABLE IF EXISTS generos CASCADE;
     `;
 
     await client.query(dropTablesSQL);
@@ -83,7 +83,7 @@ async function setupDatabase() {
 
     // Insertar datos básicos
     await client.query(`
-      INSERT INTO genres (name, description) VALUES 
+      INSERT INTO generos (name, description) VALUES 
       ('Rock', 'Música rock'),
       ('Pop', 'Música pop'),
       ('Jazz', 'Música jazz'),
@@ -91,7 +91,7 @@ async function setupDatabase() {
       ('Electrónica', 'Música electrónica')
       ON CONFLICT (name) DO NOTHING;
 
-      INSERT INTO artists (name, bio) VALUES 
+      INSERT INTO artistas (name, bio) VALUES 
       ('Pink Floyd', 'Banda británica de rock progresivo'),
       ('The Beatles', 'Banda de rock inglesa'),
       ('Michael Jackson', 'El rey del pop')
