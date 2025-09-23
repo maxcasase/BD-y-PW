@@ -1,26 +1,19 @@
 const Album = require('../models/Album');
-const Review = require('../models/Review');
 
 exports.getAlbums = async (req, res) => {
   try {
-    const { page = 1, limit = 10, genre, year, search } = req.query;
+    const { page = 1, limit = 10, search } = req.query;
     
     let albums;
     if (search) {
       albums = await Album.search(search, parseInt(page), parseInt(limit));
     } else {
-      albums = await Album.findAll(parseInt(page), parseInt(limit), genre, year);
+      albums = await Album.findAll(parseInt(page), parseInt(limit));
     }
-
-    // Obtener total para paginación (simplificado)
-    const total = albums.length; // En producción, harías un COUNT separado
 
     res.status(200).json({
       success: true,
       count: albums.length,
-      total,
-      page: parseInt(page),
-      totalPages: Math.ceil(total / limit),
       albums
     });
   } catch (error) {
@@ -54,40 +47,17 @@ exports.getAlbum = async (req, res) => {
   }
 };
 
-exports.getAlbumReviews = async (req, res) => {
-  try {
-    const { page = 1, limit = 10 } = req.query;
-    
-    const reviews = await Review.findByAlbumId(req.params.id, parseInt(page), parseInt(limit));
-
-    res.status(200).json({
-      success: true,
-      count: reviews.length,
-      reviews
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-};
-
 exports.createAlbum = async (req, res) => {
   try {
-    const { title, artist_id, release_year, genre_id, cover_image, total_tracks, duration } = req.body;
+    const { title, artist_id, release_year, genre_id, cover_image } = req.body;
     
-    const albumId = await Album.create({
+    const album = await Album.create({
       title,
       artist_id,
       release_year,
       genre_id,
-      cover_image,
-      total_tracks,
-      duration
+      cover_image
     });
-
-    const album = await Album.findById(albumId);
 
     res.status(201).json({
       success: true,
