@@ -8,11 +8,13 @@ const pool = new Pool({
   } : false,
 });
 
-// Verificar conexión al inicio
+// Verificar conexión
 const testConnection = async () => {
   try {
     const client = await pool.connect();
     console.log('✅ PostgreSQL Connected successfully to Render');
+    const result = await client.query('SELECT NOW()');
+    console.log('📅 Database time:', result.rows[0].now);
     client.release();
   } catch (error) {
     console.error('❌ PostgreSQL Connection failed:', error.message);
@@ -24,5 +26,6 @@ testConnection();
 
 module.exports = {
   query: (text, params) => pool.query(text, params),
+  getClient: () => pool.connect(),
   pool,
 };
