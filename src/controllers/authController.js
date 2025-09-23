@@ -26,22 +26,22 @@ exports.register = async (req, res) => {
     const password_hash = await bcrypt.hash(password, salt);
 
     // Crear usuario
-    const userId = await User.create({
+    const user = await User.create({
       username,
       email,
-      password_hash,
-      profile_name: username
+      password_hash
     });
 
-    const token = generateToken(userId);
+    const token = generateToken(user.id);
 
     res.status(201).json({
       success: true,
       token,
       user: {
-        id: userId,
-        username,
-        email
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        profile_name: user.profile_name
       }
     });
   } catch (error) {
@@ -83,6 +83,21 @@ exports.login = async (req, res) => {
         email: user.email,
         profile_name: user.profile_name
       }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+exports.getMe = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    res.status(200).json({
+      success: true,
+      user
     });
   } catch (error) {
     res.status(500).json({
