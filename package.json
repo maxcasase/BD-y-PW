@@ -3,11 +3,11 @@
   "version": "1.0.0",
   "description": "Backend para plataforma musical en Render",
   "main": "src/server.js",
+{
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "setup-db": "node src/database/setup.js",
-    "seed-db": "node src/database/seed.js"
+    "render-setup": "node src/database/setup.js"
   },
   "dependencies": {
     "express": "^4.18.2",
@@ -20,7 +20,8 @@
     "helmet": "^7.1.0",
     "morgan": "^1.10.0"
   },
-  "engines": {
-    "node": ">=18.0.0"
+ "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
   }
 }
