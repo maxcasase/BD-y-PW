@@ -7,26 +7,6 @@ const pool = new Pool({
     rejectUnauthorized: false 
   } : false,
 });
-const connectionString = process.env.DATABASE_URL;
-
-if (!connectionString) {
-  console.error('❌ Missing DATABASE_URL environment variable.');
-  console.error('   1. Copia la External Database URL de tu servicio de Postgres en Render.');
-  console.error('   2. Crea un archivo .env en la raíz del proyecto con:');
-  console.error('      DATABASE_URL=postgres://usuario:password@host:puerto/dbname');
-  console.error('   3. Vuelve a ejecutar "npm start" o "npm run dev" desde la carpeta del proyecto.');
-  process.exit(1);
-}
-
-const poolConfig = {
-  connectionString: connectionString,
-};
-
-if (process.env.NODE_ENV === 'production') {
-  poolConfig.ssl = { rejectUnauthorized: false };
-}
-
-const pool = new Pool(poolConfig);
 
 // Verificar conexión
 const testConnection = async () => {
