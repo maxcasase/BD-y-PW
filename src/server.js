@@ -9,6 +9,8 @@ dotenv.config();
 // Configuración de base de datos (PostgreSQL)
 require('./config/database');
 
+const environment = process.env.NODE_ENV || 'development';
+
 // Importar y ejecutar setup de base de datos
 const setupDatabase = require('./database/setup');
 setupDatabase();
@@ -51,6 +53,7 @@ app.get('/api/v1/health', async (req, res) => {
       message: 'Server is running on Render',
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV,
+      environment,
       database: 'PostgreSQL ✅'
     });
   } catch (error) {
@@ -79,6 +82,7 @@ const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en Render - Puerto: ${PORT}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
+  console.log(`🌍 Environment: ${environment}`);
   console.log(`📊 Database: PostgreSQL`);
   console.log(`✅ Health check: /api/v1/health`);
 });
