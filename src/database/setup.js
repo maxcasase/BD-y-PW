@@ -42,6 +42,7 @@ async function setupDatabase() {
         release_year INTEGER NOT NULL,
         genre_id INTEGER REFERENCES genres(id) ON DELETE CASCADE,
         cover_image VARCHAR(500),
+        discogs_release_id INTEGER,
         total_tracks INTEGER DEFAULT 0,
         duration INTEGER DEFAULT 0,
         average_rating DECIMAL(4,2) DEFAULT 0.00,
@@ -74,6 +75,7 @@ async function setupDatabase() {
 
       CREATE INDEX idx_albums_artist ON albums(artist_id);
       CREATE INDEX idx_albums_genre ON albums(genre_id);
+      CREATE INDEX idx_albums_discogs ON albums(discogs_release_id);
       CREATE INDEX idx_reviews_album ON reviews(album_id);
       CREATE INDEX idx_reviews_user ON reviews(user_id);
     `;
