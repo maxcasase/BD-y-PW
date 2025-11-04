@@ -1,31 +1,51 @@
-const { Pool } = require('pg');
+const { MongoClient, Db } = require('mongodb');
 require('dotenv').config();
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { 
-    rejectUnauthorized: false 
-  } : false,
-});
+let client;
+let db;
 
-// Verificar conexión
-const testConnection = async () => {
+const connectToMongoDB = async () => {
   try {
-    const client = await pool.connect();
-    console.log('✅ PostgreSQL Connected successfully to Render');
-    const result = await client.query('SELECT NOW()');
-    console.log('📅 Database time:', result.rows[0].now);
-    client.release();
+    const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017';
+    const dbName = process.env.DB_NAME || 'musicdb';
+    
+    client = new MongoClient(uri, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+    
+    await client.connect();
+    db = client.db(dbName);
+    
+    console.log('✅ MongoDB Connected successfully');
+    console.log('📅 Database:', dbName);
+    
+    return db;
   } catch (error) {
-    console.error('❌ PostgreSQL Connection failed:', error.message);
+    console.error('❌ MongoDB Connection failed:', error.message);
     process.exit(1);
   }
 };
 
-testConnection();
+const getDB = () => {
+  if (!db) {
+    throw new Error('Database not initialized. Call connectToMongoDB first.');
+  }
+  return db;
+};
+
+const closeConnection = async () => {
+  if (client) {
+    await client.close();
+    console.log('📤 MongoDB connection closed');
+  }
+};
+
+// Auto-connect on require
+connectToMongoDB();
 
 module.exports = {
-  query: (text, params) => pool.query(text, params),
-  getClient: () => pool.connect(),
-  pool,
+  connectToMongoDB,
+  getDB,
+  closeConnection
 };
