@@ -1,39 +1,76 @@
-const { query } = require('../config/database');
+const { getDB } = require('../config/database');
+const { ObjectId } = require('mongodb');
 
 class User {
+  static getCollection() {
+    return getDB().collection('users');
+  }
+
   static async create(userData) {
-    const result = await query(
-      `INSERT INTO users (username, email, password_hash, profile_name) 
-       VALUES ($1, $2, $3, $4) RETURNING *`,
-      [userData.username, userData.email, userData.password_hash, userData.username]
-    );
-    return result.rows[0];
+    const userDocument = {
+      username: userData.username,
+      email: userData.email,
+      password_hash: userData.password_hash,
+      profile_name: userData.username,
+      bio: null,
+      avatar_url: null,
+      created_at: new Date()
+    };
+
+    const result = await this.getCollection().insertOne(userDocument);
+    return { _id: result.insertedId, ...userDocument };
   }
 
   static async findByEmail(email) {
-    const result = await query(
-      'SELECT * FROM users WHERE email = $1',
-      [email]
-    );
-    return result.rows[0];
+    return await this.getCollection().findOne({ email: email });
   }
 
   static async findById(id) {
-    const result = await query(
-      `SELECT id, username, email, profile_name, bio, avatar_url, created_at 
-       FROM users WHERE id = $1`,
-      [id]
+    const objectId = typeof id === 'string' ? new ObjectId(id) : id;
+    return await this.getCollection().findOne(
+      { _id: objectId },
+      { 
+        projection: { 
+          password_hash: 0  // Excluir password del resultado
+        }
+      }
     );
-    return result.rows[0];
   }
 
   static async updateProfile(userId, profileData) {
-    const result = await query(
-      `UPDATE users SET profile_name = $1, bio = $2, avatar_url = $3 
-       WHERE id = $4 RETURNING *`,
-      [profileData.profile_name, profileData.bio, profileData.avatar_url, userId]
+    const objectId = typeof userId === 'string' ? new ObjectId(userId) : userId;
+    
+    const updateDocument = {
+      $set: {
+        profile_name: profileData.profile_name,
+        bio: profileData.bio,
+        avatar_url: profileData.avatar_url,
+        updated_at: new Date()
+      }
+    };
+
+    const result = await this.getCollection().findOneAndUpdate(
+      { _id: objectId },
+      updateDocument,
+      { returnDocument: 'after', projection: { password_hash: 0 } }
     );
-    return result.rows[0];
+
+    return result.value;
+  }
+
+  static async findByUsername(username) {
+    return await this.getCollection().findOne({ username: username });
+  }
+
+  static async getAllUsers(page = 1, limit = 10) {
+    const skip = (page - 1) * limit;
+    
+    return await this.getCollection()
+      .find({}, { projection: { password_hash: 0 } })
+      .sort({ created_at: -1 })
+      .skip(skip)
+      .limit(limit)
+      .toArray();
   }
 }
 

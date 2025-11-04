@@ -1,120 +1,183 @@
-const { pool } = require('../config/database');
+const { getDB } = require('../config/database');
+const { ObjectId } = require('mongodb');
 
 class Artist {
+  static getCollection() {
+    return getDB().collection('artists');
+  }
+
   static async create(artistData) {
-    const [result] = await pool.execute(
-      `INSERT INTO artists (name, bio, image_url) VALUES (?, ?, ?)`,
-      [artistData.name, artistData.bio || '', artistData.image_url || '']
-    );
-    return result.insertId;
+    const artistDocument = {
+      name: artistData.name,
+      bio: artistData.bio || '',
+      image_url: artistData.image_url || '',
+      created_at: new Date()
+    };
+
+    const result = await this.getCollection().insertOne(artistDocument);
+    return { _id: result.insertedId, ...artistDocument };
   }
 
   static async findAll(page = 1, limit = 10) {
-    const offset = (page - 1) * limit;
+    const skip = (page - 1) * limit;
     
-    const [artists] = await pool.execute(
-      `SELECT * FROM artists ORDER BY name LIMIT ? OFFSET ?`,
-      [limit, offset]
-    );
-    return artists;
+    return await this.getCollection()
+      .find({})
+      .sort({ name: 1 })
+      .skip(skip)
+      .limit(limit)
+      .toArray();
   }
 
   static async findById(id) {
-    const [rows] = await pool.execute(
-      `SELECT * FROM artists WHERE id = ?`,
-      [id]
-    );
-    return rows[0];
+    const objectId = typeof id === 'string' ? new ObjectId(id) : id;
+    return await this.getCollection().findOne({ _id: objectId });
   }
 
   static async findByName(name) {
-    const [rows] = await pool.execute(
-      `SELECT * FROM artists WHERE name = ?`,
-      [name]
-    );
-    return rows[0];
+    return await this.getCollection().findOne({ name: name });
   }
 
   static async update(artistId, artistData) {
-    const [result] = await pool.execute(
-      `UPDATE artists SET name = ?, bio = ?, image_url = ? WHERE id = ?`,
-      [artistData.name, artistData.bio, artistData.image_url, artistId]
+    const objectId = typeof artistId === 'string' ? new ObjectId(artistId) : artistId;
+    
+    const result = await this.getCollection().findOneAndUpdate(
+      { _id: objectId },
+      {
+        $set: {
+          name: artistData.name,
+          bio: artistData.bio,
+          image_url: artistData.image_url,
+          updated_at: new Date()
+        }
+      },
+      { returnDocument: 'after' }
     );
-    return result.affectedRows > 0;
+    
+    return result.value !== null;
   }
 
   static async search(query, page = 1, limit = 10) {
-    const offset = (page - 1) * limit;
+    const skip = (page - 1) * limit;
     
-    const [artists] = await pool.execute(
-      `SELECT * FROM artists WHERE name LIKE ? ORDER BY name LIMIT ? OFFSET ?`,
-      [`%${query}%`, limit, offset]
-    );
-    return artists;
+    return await this.getCollection()
+      .find({ 
+        name: { $regex: query, $options: 'i' } 
+      })
+      .sort({ name: 1 })
+      .skip(skip)
+      .limit(limit)
+      .toArray();
   }
 
   static async getArtistAlbums(artistId, page = 1, limit = 10) {
-    const offset = (page - 1) * limit;
+    const skip = (page - 1) * limit;
+    const objectId = typeof artistId === 'string' ? new ObjectId(artistId) : artistId;
     
-    const [albums] = await pool.execute(
-      `SELECT a.*, g.name as genre_name 
-       FROM albums a 
-       LEFT JOIN genres g ON a.genre_id = g.id 
-       WHERE a.artist_id = ? 
-       ORDER BY a.release_year DESC 
-       LIMIT ? OFFSET ?`,
-      [artistId, limit, offset]
-    );
-    return albums;
+    return await getDB().collection('albums').aggregate([
+      { $match: { artist_id: objectId } },
+      {
+        $lookup: {
+          from: 'genres',
+          localField: 'genre_id',
+          foreignField: '_id',
+          as: 'genre'
+        }
+      },
+      {
+        $addFields: {
+          genre_name: { $arrayElemAt: ['$genre.name', 0] }
+        }
+      },
+      {
+        $project: {
+          genre: 0
+        }
+      },
+      { $sort: { release_year: -1 } },
+      { $skip: skip },
+      { $limit: limit }
+    ]).toArray();
   }
 
   static async getArtistStats(artistId) {
-    const [[albumsCount]] = await pool.execute(
-      'SELECT COUNT(*) as count FROM albums WHERE artist_id = ?',
-      [artistId]
-    );
+    const objectId = typeof artistId === 'string' ? new ObjectId(artistId) : artistId;
+    
+    const stats = await getDB().collection('albums').aggregate([
+      { $match: { artist_id: objectId } },
+      {
+        $group: {
+          _id: null,
+          albums_count: { $sum: 1 },
+          avg_rating: { $avg: '$average_rating' },
+          total_ratings: { $sum: '$total_ratings' }
+        }
+      }
+    ]).toArray();
 
-    const [[averageRating]] = await pool.execute(
-      `SELECT COALESCE(AVG(a.average_rating), 0) as avg_rating 
-       FROM albums a WHERE a.artist_id = ?`,
-      [artistId]
-    );
-
-    const [[totalRatings]] = await pool.execute(
-      `SELECT COALESCE(SUM(a.total_ratings), 0) as total_ratings 
-       FROM albums a WHERE a.artist_id = ?`,
-      [artistId]
-    );
+    if (stats.length === 0) {
+      return {
+        albums_count: 0,
+        average_rating: 0,
+        total_ratings: 0
+      };
+    }
 
     return {
-      albums_count: albumsCount.count,
-      average_rating: parseFloat(averageRating.avg_rating),
-      total_ratings: totalRatings.total_ratings
+      albums_count: stats[0].albums_count,
+      average_rating: parseFloat(stats[0].avg_rating || 0),
+      total_ratings: stats[0].total_ratings
     };
   }
 
   static async getTopArtists(limit = 10) {
-    const [artists] = await pool.execute(
-      `SELECT a.*, 
-              COUNT(al.id) as albums_count,
-              AVG(al.average_rating) as avg_rating
-       FROM artists a
-       LEFT JOIN albums al ON a.id = al.artist_id
-       GROUP BY a.id
-       HAVING albums_count > 0
-       ORDER BY avg_rating DESC, albums_count DESC
-       LIMIT ?`,
-      [limit]
-    );
-    return artists;
+    return await this.getCollection().aggregate([
+      {
+        $lookup: {
+          from: 'albums',
+          localField: '_id',
+          foreignField: 'artist_id',
+          as: 'albums'
+        }
+      },
+      {
+        $addFields: {
+          albums_count: { $size: '$albums' },
+          avg_rating: { 
+            $avg: {
+              $filter: {
+                input: '$albums.average_rating',
+                cond: { $gt: ['$$this', 0] }
+              }
+            }
+          }
+        }
+      },
+      {
+        $match: {
+          albums_count: { $gt: 0 }
+        }
+      },
+      {
+        $project: {
+          albums: 0
+        }
+      },
+      {
+        $sort: {
+          avg_rating: -1,
+          albums_count: -1
+        }
+      },
+      { $limit: limit }
+    ]).toArray();
   }
 
   static async deleteArtist(artistId) {
-    const [result] = await pool.execute(
-      'DELETE FROM artists WHERE id = ?',
-      [artistId]
-    );
-    return result.affectedRows > 0;
+    const objectId = typeof artistId === 'string' ? new ObjectId(artistId) : artistId;
+    
+    const result = await this.getCollection().deleteOne({ _id: objectId });
+    return result.deletedCount > 0;
   }
 }
 
