@@ -92,13 +92,53 @@ async function setupDatabase() {
       ON CONFLICT (name) DO NOTHING;
 
       INSERT INTO artists (name, bio) VALUES 
+      ('The Beatles', 'Banda inglesa de rock'),
       ('Pink Floyd', 'Banda británica de rock progresivo'),
-      ('The Beatles', 'Banda de rock inglesa'),
       ('Michael Jackson', 'El rey del pop')
       ON CONFLICT (name) DO NOTHING;
     `);
 
-    console.log('✅ Sample data inserted successfully');
+    console.log('✅ Basic data inserted successfully');
+
+    // Insertar álbumes demo con FK válidas
+    await client.query(`
+      WITH beatles AS (SELECT id AS artist_id FROM artists WHERE name='The Beatles' LIMIT 1),
+           pfloyd  AS (SELECT id AS artist_id FROM artists WHERE name='Pink Floyd' LIMIT 1),
+           mjackson AS (SELECT id AS artist_id FROM artists WHERE name='Michael Jackson' LIMIT 1),
+           rock    AS (SELECT id AS genre_id  FROM genres  WHERE name='Rock' LIMIT 1),
+           pop     AS (SELECT id AS genre_id  FROM genres  WHERE name='Pop' LIMIT 1)
+      INSERT INTO albums (title, artist_id, release_year, genre_id, cover_image, total_tracks, duration) VALUES 
+      (
+        'Abbey Road', 
+        (SELECT artist_id FROM beatles), 
+        1969, 
+        (SELECT genre_id FROM rock), 
+        'https://via.placeholder.com/300x300?text=Abbey+Road', 
+        17, 
+        2869
+      ),
+      (
+        'The Dark Side of the Moon', 
+        (SELECT artist_id FROM pfloyd), 
+        1973, 
+        (SELECT genre_id FROM rock), 
+        'https://via.placeholder.com/300x300?text=Dark+Side+Moon', 
+        10, 
+        2580
+      ),
+      (
+        'Thriller', 
+        (SELECT artist_id FROM mjackson), 
+        1982, 
+        (SELECT genre_id FROM pop), 
+        'https://via.placeholder.com/300x300?text=Thriller', 
+        9, 
+        2535
+      )
+      ON CONFLICT DO NOTHING;
+    `);
+
+    console.log('✅ Sample albums inserted successfully');
     console.log('🎉 Database setup completed on Render!');
 
   } catch (error) {
