@@ -1,4 +1,4 @@
-const { MongoClient, Db } = require('mongodb');
+const { MongoClient } = require('mongodb');
 require('dotenv').config();
 
 let client;
@@ -6,46 +6,43 @@ let db;
 
 const connectToMongoDB = async () => {
   try {
-    const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017';
+    const uri = process.env.MONGODB_URI;
     const dbName = process.env.DB_NAME || 'musicdb';
-    
+
+    if (!uri) {
+      console.error('❌ MONGODB_URI is not set');
+      throw new Error('MONGODB_URI missing');
+    }
+
+    // Config recomendado para Atlas/Render
     client = new MongoClient(uri, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
+      tls: true,
+      tlsAllowInvalidCertificates: false,
+      serverSelectionTimeoutMS: 15000,
     });
-    
+
+    console.log('🔄 Attempting MongoDB connection...');
     await client.connect();
     db = client.db(dbName);
-    
-    console.log('✅ MongoDB Connected successfully');
-    console.log('📅 Database:', dbName);
-    
+    console.log('✅ MongoDB connected');
     return db;
   } catch (error) {
-    console.error('❌ MongoDB Connection failed:', error.message);
-    process.exit(1);
+    console.error('❌ MongoDB Connection failed:', error?.message || error);
+    // Evitar reinicio en bucle: no hacer process.exit
+    throw error;
   }
 };
 
 const getDB = () => {
-  if (!db) {
-    throw new Error('Database not initialized. Call connectToMongoDB first.');
-  }
+  if (!db) throw new Error('DB not initialized');
   return db;
 };
 
 const closeConnection = async () => {
-  if (client) {
-    await client.close();
-    console.log('📤 MongoDB connection closed');
-  }
+  if (client) await client.close();
 };
 
-// Auto-connect on require
-connectToMongoDB();
+// Autoconectar
+connectToMongoDB().catch(() => {});
 
-module.exports = {
-  connectToMongoDB,
-  getDB,
-  closeConnection
-};
+module.exports = { connectToMongoDB, getDB, closeConnection };
