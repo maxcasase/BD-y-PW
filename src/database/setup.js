@@ -1,152 +1,154 @@
-const { query, getClient } = require('../config/database');
+const { getDB, connectToMongoDB } = require('../config/database');
 
 async function setupDatabase() {
-  const client = await getClient();
-  
   try {
-    console.log('🚀 Starting database setup for Render PostgreSQL...');
+    console.log('🚀 Starting MongoDB setup...');
+    
+    // Asegurar conexión
+    await connectToMongoDB();
+    const db = getDB();
 
-    // PRIMERO eliminar tablas existentes (en orden inverso por dependencias)
-    const dropTablesSQL = `
-      DROP TABLE IF EXISTS reviews CASCADE;
-      DROP TABLE IF EXISTS albums CASCADE;
-      DROP TABLE IF EXISTS users CASCADE;
-      DROP TABLE IF EXISTS artists CASCADE;
-      DROP TABLE IF EXISTS genres CASCADE;
-    `;
+    console.log('📦 Creating collections and indices...');
 
-    await client.query(dropTablesSQL);
-    console.log('✅ Old tables dropped successfully');
+    // Crear índices para users
+    await db.collection('users').createIndex({ email: 1 }, { unique: true });
+    await db.collection('users').createIndex({ username: 1 }, { unique: true });
+    console.log('✅ Users indices created');
 
-    // LUEGO crear tablas nuevas
-    const setupSQL = `
-      CREATE TABLE genres (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(100) NOT NULL UNIQUE,
-        description TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    // Crear índices para artists
+    await db.collection('artists').createIndex({ name: 1 }, { unique: true });
+    await db.collection('artists').createIndex({ name: "text" });
+    console.log('✅ Artists indices created');
+
+    // Crear índices para genres
+    await db.collection('genres').createIndex({ name: 1 }, { unique: true });
+    await db.collection('genres').createIndex({ name: "text" });
+    console.log('✅ Genres indices created');
+
+    // Crear índices para albums
+    await db.collection('albums').createIndex({ artist_id: 1 });
+    await db.collection('albums').createIndex({ genre_id: 1 });
+    await db.collection('albums').createIndex({ discogs_release_id: 1 });
+    await db.collection('albums').createIndex({ title: "text" });
+    await db.collection('albums').createIndex({ average_rating: -1 });
+    await db.collection('albums').createIndex({ created_at: -1 });
+    console.log('✅ Albums indices created');
+
+    // Crear índices para reviews
+    await db.collection('reviews').createIndex({ user_id: 1, album_id: 1 }, { unique: true });
+    await db.collection('reviews').createIndex({ album_id: 1 });
+    await db.collection('reviews').createIndex({ user_id: 1 });
+    await db.collection('reviews').createIndex({ created_at: -1 });
+    await db.collection('reviews').createIndex({ rating: -1 });
+    console.log('✅ Reviews indices created');
+
+    // Insertar datos básicos de géneros
+    const genres = [
+      { name: 'Rock', description: 'Música rock' },
+      { name: 'Pop', description: 'Música pop' },
+      { name: 'Jazz', description: 'Música jazz' },
+      { name: 'Hip Hop', description: 'Hip hop y rap' },
+      { name: 'Electrónica', description: 'Música electrónica' }
+    ];
+
+    for (const genre of genres) {
+      await db.collection('genres').updateOne(
+        { name: genre.name },
+        { 
+          $setOnInsert: { 
+            ...genre, 
+            created_at: new Date() 
+          } 
+        },
+        { upsert: true }
       );
+    }
+    console.log('✅ Basic genres inserted');
 
-      CREATE TABLE artists (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(200) NOT NULL UNIQUE,
-        bio TEXT,
-        image_url VARCHAR(500),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    // Insertar artistas básicos
+    const artists = [
+      { name: 'The Beatles', bio: 'Banda inglesa de rock' },
+      { name: 'Pink Floyd', bio: 'Banda británica de rock progresivo' },
+      { name: 'Michael Jackson', bio: 'El rey del pop' }
+    ];
+
+    for (const artist of artists) {
+      await db.collection('artists').updateOne(
+        { name: artist.name },
+        { 
+          $setOnInsert: { 
+            ...artist, 
+            image_url: '',
+            created_at: new Date() 
+          } 
+        },
+        { upsert: true }
       );
+    }
+    console.log('✅ Basic artists inserted');
 
-      CREATE TABLE albums (
-        id SERIAL PRIMARY KEY,
-        title VARCHAR(300) NOT NULL,
-        artist_id INTEGER REFERENCES artists(id) ON DELETE CASCADE,
-        release_year INTEGER NOT NULL,
-        genre_id INTEGER REFERENCES genres(id) ON DELETE CASCADE,
-        cover_image VARCHAR(500),
-        discogs_release_id INTEGER,
-        total_tracks INTEGER DEFAULT 0,
-        duration INTEGER DEFAULT 0,
-        average_rating DECIMAL(4,2) DEFAULT 0.00,
-        total_ratings INTEGER DEFAULT 0,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    // Insertar álbumes demo
+    const beatles = await db.collection('artists').findOne({ name: 'The Beatles' });
+    const pinkFloyd = await db.collection('artists').findOne({ name: 'Pink Floyd' });
+    const mjackson = await db.collection('artists').findOne({ name: 'Michael Jackson' });
+    const rockGenre = await db.collection('genres').findOne({ name: 'Rock' });
+    const popGenre = await db.collection('genres').findOne({ name: 'Pop' });
+
+    const albums = [
+      {
+        title: 'Abbey Road',
+        artist_id: beatles._id,
+        release_year: 1969,
+        genre_id: rockGenre._id,
+        cover_image: 'https://via.placeholder.com/300x300?text=Abbey+Road',
+        total_tracks: 17,
+        duration: 2869,
+        average_rating: 0.00,
+        total_ratings: 0,
+        created_at: new Date()
+      },
+      {
+        title: 'The Dark Side of the Moon',
+        artist_id: pinkFloyd._id,
+        release_year: 1973,
+        genre_id: rockGenre._id,
+        cover_image: 'https://via.placeholder.com/300x300?text=Dark+Side+Moon',
+        total_tracks: 10,
+        duration: 2580,
+        average_rating: 0.00,
+        total_ratings: 0,
+        created_at: new Date()
+      },
+      {
+        title: 'Thriller',
+        artist_id: mjackson._id,
+        release_year: 1982,
+        genre_id: popGenre._id,
+        cover_image: 'https://via.placeholder.com/300x300?text=Thriller',
+        total_tracks: 9,
+        duration: 2535,
+        average_rating: 0.00,
+        total_ratings: 0,
+        created_at: new Date()
+      }
+    ];
+
+    for (const album of albums) {
+      await db.collection('albums').updateOne(
+        { title: album.title, artist_id: album.artist_id },
+        { $setOnInsert: album },
+        { upsert: true }
       );
+    }
+    console.log('✅ Sample albums inserted');
 
-      CREATE TABLE users (
-        id SERIAL PRIMARY KEY,
-        username VARCHAR(50) UNIQUE NOT NULL,
-        email VARCHAR(100) UNIQUE NOT NULL,
-        password_hash VARCHAR(255) NOT NULL,
-        profile_name VARCHAR(100),
-        bio TEXT,
-        avatar_url VARCHAR(500),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-
-      CREATE TABLE reviews (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-        album_id INTEGER REFERENCES albums(id) ON DELETE CASCADE,
-        rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 10),
-        title VARCHAR(200) NOT NULL,
-        content TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE (user_id, album_id)
-      );
-
-      CREATE INDEX idx_albums_artist ON albums(artist_id);
-      CREATE INDEX idx_albums_genre ON albums(genre_id);
-      CREATE INDEX idx_albums_discogs ON albums(discogs_release_id);
-      CREATE INDEX idx_reviews_album ON reviews(album_id);
-      CREATE INDEX idx_reviews_user ON reviews(user_id);
-    `;
-
-    await client.query(setupSQL);
-    console.log('✅ Database tables created successfully');
-
-    // Insertar datos básicos
-    await client.query(`
-      INSERT INTO genres (name, description) VALUES 
-      ('Rock', 'Música rock'),
-      ('Pop', 'Música pop'),
-      ('Jazz', 'Música jazz'),
-      ('Hip Hop', 'Hip hop y rap'),
-      ('Electrónica', 'Música electrónica')
-      ON CONFLICT (name) DO NOTHING;
-
-      INSERT INTO artists (name, bio) VALUES 
-      ('The Beatles', 'Banda inglesa de rock'),
-      ('Pink Floyd', 'Banda británica de rock progresivo'),
-      ('Michael Jackson', 'El rey del pop')
-      ON CONFLICT (name) DO NOTHING;
-    `);
-
-    console.log('✅ Basic data inserted successfully');
-
-    // Insertar álbumes demo con FK válidas
-    await client.query(`
-      WITH beatles AS (SELECT id AS artist_id FROM artists WHERE name='The Beatles' LIMIT 1),
-           pfloyd  AS (SELECT id AS artist_id FROM artists WHERE name='Pink Floyd' LIMIT 1),
-           mjackson AS (SELECT id AS artist_id FROM artists WHERE name='Michael Jackson' LIMIT 1),
-           rock    AS (SELECT id AS genre_id  FROM genres  WHERE name='Rock' LIMIT 1),
-           pop     AS (SELECT id AS genre_id  FROM genres  WHERE name='Pop' LIMIT 1)
-      INSERT INTO albums (title, artist_id, release_year, genre_id, cover_image, total_tracks, duration) VALUES 
-      (
-        'Abbey Road', 
-        (SELECT artist_id FROM beatles), 
-        1969, 
-        (SELECT genre_id FROM rock), 
-        'https://via.placeholder.com/300x300?text=Abbey+Road', 
-        17, 
-        2869
-      ),
-      (
-        'The Dark Side of the Moon', 
-        (SELECT artist_id FROM pfloyd), 
-        1973, 
-        (SELECT genre_id FROM rock), 
-        'https://via.placeholder.com/300x300?text=Dark+Side+Moon', 
-        10, 
-        2580
-      ),
-      (
-        'Thriller', 
-        (SELECT artist_id FROM mjackson), 
-        1982, 
-        (SELECT genre_id FROM pop), 
-        'https://via.placeholder.com/300x300?text=Thriller', 
-        9, 
-        2535
-      )
-      ON CONFLICT DO NOTHING;
-    `);
-
-    console.log('✅ Sample albums inserted successfully');
-    console.log('🎉 Database setup completed on Render!');
-
+    console.log('🎉 MongoDB setup completed!');
+    console.log('📊 Collections created: users, artists, genres, albums, reviews');
+    console.log('🔍 Indices optimized for queries');
+    
   } catch (error) {
-    console.error('❌ Database setup failed:', error);
-  } finally {
-    client.release();
+    console.error('❌ MongoDB setup failed:', error);
+    process.exit(1);
   }
 }
 
