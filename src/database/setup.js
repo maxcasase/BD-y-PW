@@ -44,7 +44,7 @@ async function setupDatabase() {
         cover_image VARCHAR(500),
         total_tracks INTEGER DEFAULT 0,
         duration INTEGER DEFAULT 0,
-        average_rating DECIMAL(3,2) DEFAULT 0.00,
+        average_rating DECIMAL(4,2) DEFAULT 0.00,
         total_ratings INTEGER DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
