@@ -92,3 +92,79 @@ exports.getReviews = async (req, res) => {
     });
   }
 };
+
+exports.getUserReviews = async (req, res) => {
+  try {
+    const { page = 1, limit = 10 } = req.query;
+    const offset = (page - 1) * limit;
+
+    const result = await query(
+      `SELECT r.*, a.title as album_title, a.cover_image, 
+              ar.name as artist_name
+       FROM reviews r
+       LEFT JOIN albums a ON r.album_id = a.id
+       LEFT JOIN artists ar ON a.artist_id = ar.id
+       WHERE r.user_id = $1
+       ORDER BY r.created_at DESC 
+       LIMIT $2 OFFSET $3`,
+      [req.user.id, limit, offset]
+    );
+
+    res.status(200).json({
+      success: true,
+      count: result.rows.length,
+      reviews: result.rows
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+exports.deleteReview = async (req, res) => {
+  try {
+    const reviewId = req.params.id;
+    
+    // Verificar que la review pertenece al usuario
+    const review = await query(
+      'SELECT * FROM reviews WHERE id = $1 AND user_id = $2',
+      [reviewId, req.user.id]
+    );
+
+    if (review.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Review no encontrada o no tienes permisos'
+      });
+    }
+
+    const albumId = review.rows[0].album_id;
+
+    // Eliminar review
+    await query('DELETE FROM reviews WHERE id = $1', [reviewId]);
+
+    // Actualizar rating del álbum
+    await query(
+      `UPDATE albums 
+       SET average_rating = COALESCE((
+         SELECT AVG(rating) FROM reviews WHERE album_id = $1
+       ), 0), total_ratings = (
+         SELECT COUNT(*) FROM reviews WHERE album_id = $1
+       )
+       WHERE id = $1`,
+      [albumId]
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Review eliminada correctamente'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
