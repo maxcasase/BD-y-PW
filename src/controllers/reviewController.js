@@ -24,14 +24,14 @@ exports.createReview = async (req, res) => {
       [req.user.id, album_id, rating, title, content]
     );
 
-    // Actualizar rating del álbum
+    // Actualizar rating del álbum con protección contra overflow
     await query(
       `UPDATE albums 
-       SET average_rating = (
-         SELECT AVG(rating) FROM reviews WHERE album_id = $1
-       ), total_ratings = (
-         SELECT COUNT(*) FROM reviews WHERE album_id = $1
-       )
+       SET average_rating = LEAST(
+         10.00,
+         ROUND(COALESCE((SELECT AVG(rating)::numeric FROM reviews WHERE album_id = $1), 0), 2)
+       ),
+       total_ratings = (SELECT COUNT(*) FROM reviews WHERE album_id = $1)
        WHERE id = $1`,
       [album_id]
     );
@@ -52,6 +52,7 @@ exports.createReview = async (req, res) => {
       }
     });
   } catch (error) {
+    console.error('Error creating review:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -86,6 +87,7 @@ exports.getReviews = async (req, res) => {
       reviews: result.rows
     });
   } catch (error) {
+    console.error('Error getting reviews:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -116,6 +118,7 @@ exports.getUserReviews = async (req, res) => {
       reviews: result.rows
     });
   } catch (error) {
+    console.error('Error getting user reviews:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -145,14 +148,14 @@ exports.deleteReview = async (req, res) => {
     // Eliminar review
     await query('DELETE FROM reviews WHERE id = $1', [reviewId]);
 
-    // Actualizar rating del álbum
+    // Actualizar rating del álbum con protección contra overflow
     await query(
       `UPDATE albums 
-       SET average_rating = COALESCE((
-         SELECT AVG(rating) FROM reviews WHERE album_id = $1
-       ), 0), total_ratings = (
-         SELECT COUNT(*) FROM reviews WHERE album_id = $1
-       )
+       SET average_rating = LEAST(
+         10.00,
+         ROUND(COALESCE((SELECT AVG(rating)::numeric FROM reviews WHERE album_id = $1), 0), 2)
+       ),
+       total_ratings = (SELECT COUNT(*) FROM reviews WHERE album_id = $1)
        WHERE id = $1`,
       [albumId]
     );
@@ -162,6 +165,7 @@ exports.deleteReview = async (req, res) => {
       message: 'Review eliminada correctamente'
     });
   } catch (error) {
+    console.error('Error deleting review:', error);
     res.status(500).json({
       success: false,
       message: error.message
