@@ -1,5 +1,5 @@
 const express = require('express');
-const { getAlbums, getAlbum, createAlbum } = require('../controllers/albumController');
+const { getAlbums, getAlbum, getEnhancedAlbum, createAlbum } = require('../controllers/albumController');
 const { syncAlbumCover, syncAllAlbumCovers, testDiscogsConnection } = require('../controllers/discogsController');
 const { protect } = require('../middleware/auth');
 
@@ -8,6 +8,7 @@ const router = express.Router();
 // Rutas básicas de álbumes
 router.get('/', getAlbums);
 router.get('/:id', getAlbum);
+router.get('/:id/enhanced', getEnhancedAlbum);            // Álbum con auto-sync Discogs
 router.post('/', protect, createAlbum);
 
 // Rutas Discogs
