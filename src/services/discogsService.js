@@ -19,9 +19,9 @@ class DiscogsService {
     };
   }
 
-  async searchAlbum(artist, title) {
+  async searchAlbums(artist, title) {
     try {
-      const query = `${title} ${artist}`;
+      const query = `${artist} ${title}`;
       const response = await axios.get(`${this.baseURL}/database/search`, {
         params: {
           q: query,
@@ -32,22 +32,19 @@ class DiscogsService {
       });
 
       if (response.data.results && response.data.results.length > 0) {
-        // Buscar el mejor match
-        const results = response.data.results;
-        
         // Priorizar matches exactos o muy similares
+        const results = response.data.results;
         const exactMatch = results.find(result => 
           result.title.toLowerCase().includes(title.toLowerCase()) &&
           result.title.toLowerCase().includes(artist.toLowerCase())
         );
-
-        return exactMatch || results[0];
+        return exactMatch ? [exactMatch] : results;
       }
 
-      return null;
+      return [];
     } catch (error) {
-      console.error(`❌ Error searching album "${title}" by "${artist}":`, error.message);
-      return null;
+      console.error(`❌ Error searching albums "${title}" by "${artist}":`, error.message);
+      return [];
     }
   }
 
@@ -56,7 +53,6 @@ class DiscogsService {
       const response = await axios.get(`${this.baseURL}/releases/${releaseId}`, {
         headers: this.getHeaders()
       });
-
       return response.data;
     } catch (error) {
       console.error(`❌ Error getting release details for ID ${releaseId}:`, error.message);
@@ -67,36 +63,22 @@ class DiscogsService {
   async getAlbumCover(artist, title) {
     try {
       console.log(`🔍 Searching Discogs for: "${title}" by "${artist}"`);
-      
-      // 1. Buscar el álbum
-      const searchResult = await this.searchAlbum(artist, title);
-      if (!searchResult) {
+      const searchResult = await this.searchAlbums(artist, title);
+      if (!searchResult || searchResult.length === 0) {
         console.log(`❌ No results found for "${title}" by "${artist}"`);
         return null;
       }
-
-      console.log(`✅ Found release ID: ${searchResult.id}`);
-
-      // 2. Obtener detalles del release
-      const releaseDetails = await this.getReleaseDetails(searchResult.id);
+      const releaseDetails = await this.getReleaseDetails(searchResult[0].id);
       if (!releaseDetails || !releaseDetails.images || releaseDetails.images.length === 0) {
-        console.log(`❌ No images found for release ID: ${searchResult.id}`);
+        console.log(`❌ No images found for release ID: ${searchResult[0].id}`);
         return null;
       }
-
-      // 3. Seleccionar la mejor imagen
       const images = releaseDetails.images;
-      
-      // Priorizar imagen primaria
       let bestImage = images.find(img => img.type === 'primary');
-      if (!bestImage) {
-        bestImage = images[0]; // Tomar la primera si no hay primaria
-      }
-
+      if (!bestImage) bestImage = images[0];
       console.log(`🖼️ Found cover image: ${bestImage.uri}`);
-
       return {
-        discogs_release_id: searchResult.id,
+        discogs_release_id: searchResult[0].id,
         cover_image: bestImage.uri,
         discogs_data: {
           title: releaseDetails.title,
@@ -106,7 +88,6 @@ class DiscogsService {
           tracklist_count: releaseDetails.tracklist?.length || 0
         }
       };
-
     } catch (error) {
       console.error(`❌ Error in getAlbumCover for "${title}" by "${artist}":`, error.message);
       return null;
@@ -122,7 +103,6 @@ class DiscogsService {
         },
         headers: this.getHeaders()
       });
-
       console.log('✅ Discogs API connection successful');
       console.log(`📊 Rate limit remaining: ${response.headers['x-discogs-ratelimit-remaining']}`);
       return true;
