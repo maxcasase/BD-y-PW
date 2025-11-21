@@ -1,17 +1,21 @@
 const Album = require('../models/Album');
 const discogsService = require('../services/discogsService');
-const { query } = require('../config/database');
 
 exports.getAlbums = async (req, res) => {
   try {
     const { page = 1, limit = 10, search } = req.query;
-    
-    let albums;
+
+    let query = {};
     if (search) {
-      albums = await Album.search(search, parseInt(page), parseInt(limit));
-    } else {
-      albums = await Album.findAll(parseInt(page), parseInt(limit));
+      const regex = new RegExp(search, 'i');
+      query = { $or: [{ title: regex }, { artistName: regex }] };
     }
+
+    const albums = await Album.find(query)
+      .skip((parseInt(page) - 1) * parseInt(limit))
+      .limit(parseInt(limit))
+      .sort({ createdAt: -1 })
+      .exec();
 
     res.status(200).json({
       success: true,
@@ -28,8 +32,8 @@ exports.getAlbums = async (req, res) => {
 
 exports.getAlbum = async (req, res) => {
   try {
-    const album = await Album.findById(req.params.id);
-    
+    const album = await Album.findById(req.params.id).exec();
+
     if (!album) {
       return res.status(404).json({
         success: false,
@@ -52,8 +56,8 @@ exports.getAlbum = async (req, res) => {
 exports.getEnhancedAlbum = async (req, res) => {
   try {
     const albumId = req.params.id;
-    const album = await Album.findById(albumId);
-    
+    const album = await Album.findById(albumId).exec();
+
     if (!album) {
       return res.status(404).json({
         success: false,
@@ -61,32 +65,22 @@ exports.getEnhancedAlbum = async (req, res) => {
       });
     }
 
-    // Si no tiene portada válida, intentar obtenerla de Discogs
-    if (!album.cover_image || album.cover_image.includes('placeholder')) {
+    if (!album.coverImage || album.coverImage.includes('placeholder')) {
       console.log(`🔍 Auto-syncing cover for album ${albumId}: "${album.title}"`);
-      
+
       try {
-        const discogsData = await discogsService.getAlbumCover(album.artist_name, album.title);
-        
+        const discogsData = await discogsService.getAlbumCover(album.artistName, album.title);
+
         if (discogsData) {
-          // Actualizar en BD
-          await query(
-            `UPDATE albums 
-             SET cover_image = $1, discogs_release_id = $2
-             WHERE id = $3`,
-            [discogsData.cover_image, discogsData.discogs_release_id, albumId]
-          );
-          
-          // Actualizar objeto album
-          album.cover_image = discogsData.cover_image;
-          album.discogs_release_id = discogsData.discogs_release_id;
-          album.discogs_data = discogsData.discogs_data;
-          
+          album.coverImage = discogsData.cover_image;
+          album.discogsReleaseId = discogsData.discogs_release_id;
+          album.discogsData = discogsData.discogs_data;
+
+          await album.save();
           console.log(`✅ Auto-sync successful for album ${albumId}`);
         }
       } catch (error) {
         console.error(`❌ Auto-sync failed for album ${albumId}:`, error.message);
-        // Continuar con los datos existentes si falla
       }
     }
 
@@ -104,15 +98,17 @@ exports.getEnhancedAlbum = async (req, res) => {
 
 exports.createAlbum = async (req, res) => {
   try {
-    const { title, artist_id, release_year, genre_id, cover_image } = req.body;
-    
-    const album = await Album.create({
+    const { title, artistId, releaseYear, genreId, coverImage } = req.body;
+
+    const album = new Album({
       title,
-      artist_id,
-      release_year,
-      genre_id,
-      cover_image
+      artistId,
+      releaseYear,
+      genreId,
+      coverImage
     });
+
+    await album.save();
 
     res.status(201).json({
       success: true,
