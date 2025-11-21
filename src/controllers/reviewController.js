@@ -1,10 +1,20 @@
+const mongoose = require('mongoose');
 const Review = require('../models/Review');
 const User = require('../models/User'); // Si tienes un modelo mongoose para usuarios
 
 exports.createReview = async (req, res) => {
   try {
-    const { album_id, rating, title, content } = req.body;
-    const user_id = req.user.id; // Asegúrate que req.user.id es un ObjectId adecuado
+    let { album_id, rating, title, content } = req.body;
+    const user_id = req.user.id; // Asegúrate que req.user.id es un ObjectId adecuado o string
+
+    // Convertir album_id a ObjectId si es necesario
+    if (!mongoose.Types.ObjectId.isValid(album_id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'album_id inválido para MongoDB',
+      });
+    }
+    album_id = new mongoose.Types.ObjectId(album_id);
 
     // Verificar si ya existe reseña de este usuario para este álbum
     const existingReview = await Review.findOne({ user_id, album_id });
@@ -18,7 +28,7 @@ exports.createReview = async (req, res) => {
     const review = new Review({ user_id, album_id, rating, title, content });
     await review.save();
 
-    // Obtiene datos básicos del usuario para la respuesta si existe el modelo User
+    // Opcional: obtener datos básicos del usuario en la respuesta
     let userData = null;
     if (User && User.findById) {
       userData = await User.findById(user_id, 'username profile_name avatar_url');
