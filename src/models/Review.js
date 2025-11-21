@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const reviewSchema = new mongoose.Schema({
-  user_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  user_id: { type: String, required: true }, // almacena el id de usuario como string
   album_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Album', required: true },
   rating: { type: Number, required: true, min: 0, max: 10 },
   title: { type: String, required: true },
